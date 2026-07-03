@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  button { font-family: inherit; }
+  textarea, input { font-family: inherit; }
+  textarea { resize: none; }
+  .sprout-scroll::-webkit-scrollbar { width: 7px; }
+  .sprout-scroll::-webkit-scrollbar-thumb { background: var(--line, #ddd); border-radius: 10px; }
+  .sprout-scroll::-webkit-scrollbar-track { background: transparent; }
+  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-5px) rotate(1deg); } }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes dots { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes twinkle { 0%,100% { opacity: .2; transform: scale(.7); } 50% { opacity: 1; transform: scale(1); } }
+  @keyframes burst { 0% { opacity: 0; transform: scale(.2); } 30% { opacity: 1; transform: scale(1.15); } 100% { opacity: 0; transform: scale(.5); } }
+</style>
+</helmet>
+<div style="{{ rootStyle }}">
+
+  <!-- starfield -->
+  <div style="{{ starFieldStyle }}">
+    <sc-for list="{{ stars }}" as="st" hint-placeholder-count="12">
+      <div style="{{ st.style }}"></div>
+    </sc-for>
+  </div>
+
+  <!-- drag handle -->
+  <div style="position:absolute;top:9px;left:50%;transform:translateX(-50%);width:38px;height:4px;border-radius:4px;background:var(--line,#e5d6c4);opacity:.7;z-index:2;"></div>
+
+  <!-- theme switcher -->
+  <div style="position:absolute;top:16px;right:18px;display:flex;gap:8px;z-index:5;">
+    <sc-for list="{{ themeBtns }}" as="tb" hint-placeholder-count="3">
+      <button onClick="{{ tb.onClick }}" title="{{ tb.title }}" style="{{ tb.style }}"></button>
+    </sc-for>
+  </div>
+
+  <!-- HEADER -->
+  <div style="padding:26px 20px 14px;flex:0 0 auto;position:relative;z-index:1;">
+    <div style="display:flex;align-items:flex-end;gap:12px;padding-right:70px;">
+      <!-- mascot -->
+      <div style="{{ mascotWrapStyle }}">
+        <div style="{{ leafWrapStyle }}">✦</div>
+        <div style="{{ bodyStyle }}">
+          <div style="position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%;background:rgba(120,95,40,.12);"></div>
+          <div style="position:absolute;bottom:8px;left:8px;width:5px;height:5px;border-radius:50%;background:rgba(120,95,40,.12);"></div>
+          <div style="display:flex;gap:9px;">
+            <div style="{{ eyeStyle }}"></div>
+            <div style="{{ eyeStyle }}"></div>
+          </div>
+          <div style="{{ mouthStyle }}"></div>
+          <sc-if value="{{ showCheeks }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:7px;top:31px;width:7px;height:7px;border-radius:50%;background:rgba(232,124,107,.55);"></div>
+            <div style="position:absolute;right:7px;top:31px;width:7px;height:7px;border-radius:50%;background:rgba(232,124,107,.55);"></div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ celebrate }}" hint-placeholder-val="{{ false }}">
+          <sc-for list="{{ sparkles }}" as="sp" hint-placeholder-count="6">
+            <div style="{{ sp.style }}">✦</div>
+          </sc-for>
+        </sc-if>
+      </div>
+      <!-- speech bubble -->
+      <div style="position:relative;flex:1;background:var(--card,#fff);border:2px var(--st,solid) var(--line,#ead9c6);border-radius:16px;padding:10px 13px;min-height:52px;display:flex;align-items:center;box-shadow:0 4px 14px -8px rgba(0,0,0,.25);">
+        <sc-if value="{{ talking }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:5px;align-items:center;">
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--muted,#aaa);animation:dots 1.2s infinite;"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--muted,#aaa);animation:dots 1.2s .2s infinite;"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--muted,#aaa);animation:dots 1.2s .4s infinite;"></span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ notTalking }}" hint-placeholder-val="{{ true }}">
+          <span style="font-size:13.5px;line-height:1.35;font-weight:500;color:var(--text,#5a4634);">{{ speechMsg }}</span>
+        </sc-if>
+        <div style="position:absolute;left:-8px;bottom:15px;width:14px;height:14px;background:var(--card,#fff);border-left:2px var(--st,solid) var(--line,#ead9c6);border-bottom:2px var(--st,solid) var(--line,#ead9c6);transform:rotate(45deg);"></div>
+      </div>
+      <button onClick="{{ talkToMascot }}" title="Talk to Sprout" style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;border:none;background:var(--accent,#e8956b);color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -4px var(--accent,#e8956b);align-self:flex-end;">💬</button>
+    </div>
+
+    <!-- progress -->
+    <div style="margin-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <span style="font-size:12px;font-weight:600;color:var(--muted,#a08b76);letter-spacing:.3px;">TODAY'S PROGRESS</span>
+        <span style="font-size:12px;font-weight:700;color:var(--text,#5a4634);">{{ doneCount }}/{{ totalCount }}</span>
+      </div>
+      <div style="height:9px;border-radius:9px;background:var(--chip,#fbf3ea);overflow:hidden;">
+        <div style="{{ barStyle }}"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div style="display:flex;gap:6px;padding:4px 20px 0;flex:0 0 auto;position:relative;z-index:1;">
+    <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="3">
+      <button onClick="{{ tab.onClick }}" style="{{ tab.style }}">{{ tab.label }}</button>
+    </sc-for>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="sprout-scroll" style="flex:1;overflow-y:auto;padding:16px 20px 20px;position:relative;z-index:1;">
+
+    <!-- ===== TODAY ===== -->
+    <sc-if value="{{ isToday }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <input value="{{ newTask }}" onChange="{{ onNewTask }}" onKeyDown="{{ onNewTaskKey }}" placeholder="Add a task…" style="flex:1;padding:11px 14px;border-radius:13px;border:2px var(--st,solid) var(--line,#ead9c6);background:var(--input,#fbf3ea);color:var(--text,#5a4634);font-size:14px;font-weight:500;outline:none;">
+          <button onClick="{{ addManual }}" style="flex:0 0 auto;width:44px;border-radius:13px;border:none;background:var(--accent,#e8956b);color:#fff;font-size:22px;cursor:pointer;">+</button>
+        </div>
+
+        <button onClick="{{ toggleDump }}" style="width:100%;text-align:left;padding:9px 13px;border-radius:12px;border:2px var(--st,solid) var(--line,#ead9c6);background:transparent;color:var(--muted,#a08b76);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+          <span>🧠 Brain dump — let AI sort it</span>
+          <span style="{{ dumpChevronStyle }}">⌄</span>
+        </button>
+
+        <sc-if value="{{ dumpOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-bottom:14px;animation:rise .25s ease;">
+            <textarea value="{{ dumpText }}" onChange="{{ onDump }}" placeholder="Type everything swirling in your head — one big mess is fine. Sprout will untangle it into clean tasks with categories & priorities." rows="4" style="width:100%;padding:12px 14px;border-radius:13px;border:2px var(--st,solid) var(--line,#ead9c6);background:var(--input,#fbf3ea);color:var(--text,#5a4634);font-size:13.5px;line-height:1.45;outline:none;"></textarea>
+            <button onClick="{{ aiSort }}" disabled="{{ sorting }}" style="{{ sortBtnStyle }}">
+              <sc-if value="{{ sorting }}" hint-placeholder-val="{{ false }}">
+                <span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;"></span>
+                <span>Untangling…</span>
+              </sc-if>
+              <sc-if value="{{ notSorting }}" hint-placeholder-val="{{ true }}">
+                <span>✨ Sort into tasks</span>
+              </sc-if>
+            </button>
+          </div>
+        </sc-if>
+
+        <!-- task list -->
+        <sc-if value="{{ hasTasks }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <sc-for list="{{ taskItems }}" as="t" hint-placeholder-count="3">
+              <div style="{{ t.rowStyle }}">
+                <button onClick="{{ t.toggle }}" style="{{ t.checkStyle }}">
+                  <sc-if value="{{ t.done }}" hint-placeholder-val="{{ false }}">
+                    <span style="color:#fff;font-size:13px;font-weight:700;line-height:1;">✓</span>
+                  </sc-if>
+                </button>
+                <div style="flex:1;min-width:0;">
+                  <div style="{{ t.textStyle }}">{{ t.text }}</div>
+                  <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+                    <span style="{{ t.chipStyle }}">{{ t.category }}</span>
+                    <span style="{{ t.dotStyle }}"></span>
+                    <span style="font-size:10.5px;color:var(--muted,#a08b76);text-transform:capitalize;">{{ t.priority }}</span>
+                  </div>
+                </div>
+                <button onClick="{{ t.remove }}" style="flex:0 0 auto;width:26px;height:26px;border:none;background:transparent;color:var(--muted,#a08b76);font-size:16px;cursor:pointer;opacity:.5;border-radius:8px;">×</button>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ noTasks }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;padding:30px 16px;color:var(--muted,#a08b76);">
+            <div style="font-size:34px;margin-bottom:8px;">🌙</div>
+            <div style="font-size:14px;font-weight:600;">All clear! Add a task or dump your brain above.</div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ===== FOCUS ===== -->
+    <sc-if value="{{ isFocus }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;align-items:center;padding-top:6px;">
+        <div style="display:flex;gap:6px;background:var(--chip,#fbf3ea);padding:4px;border-radius:12px;margin-bottom:22px;">
+          <button onClick="{{ setFocusMode }}" style="{{ focusModeStyle }}">🍅 Focus</button>
+          <button onClick="{{ setBreakMode }}" style="{{ breakModeStyle }}">🍵 Break</button>
+        </div>
+
+        <div style="position:relative;width:194px;height:194px;">
+          <svg width="194" height="194" viewBox="0 0 194 194" style="transform:rotate(-90deg);">
+            <circle cx="97" cy="97" r="86" fill="none" stroke="var(--chip,#fbf3ea)" stroke-width="12"></circle>
+            <circle cx="97" cy="97" r="86" fill="none" stroke="var(--accent,#e8956b)" stroke-width="12" stroke-linecap="round" stroke-dasharray="{{ circ }}" stroke-dashoffset="{{ dashoff }}" style="transition:stroke-dashoffset .5s ease;"></circle>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div style="font-size:44px;font-weight:700;font-family:var(--head,'Fredoka',sans-serif);color:var(--text,#5a4634);letter-spacing:1px;">{{ timeText }}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--muted,#a08b76);text-transform:uppercase;letter-spacing:1px;">{{ modeLabel }}</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:26px;">
+          <button onClick="{{ toggleTimer }}" style="{{ runBtnStyle }}">{{ runLabel }}</button>
+          <button onClick="{{ resetTimer }}" style="width:52px;height:52px;border-radius:50%;border:2px var(--st,solid) var(--line,#ead9c6);background:transparent;color:var(--text,#5a4634);font-size:18px;cursor:pointer;">↺</button>
+        </div>
+
+        <div style="margin-top:24px;font-size:13px;font-weight:600;color:var(--muted,#a08b76);">
+          🍅 {{ pomos }} focus sessions today
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== NOTES ===== -->
+    <sc-if value="{{ isNotes }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;height:100%;">
+        <textarea value="{{ notes }}" onChange="{{ onNotes }}" placeholder="A little scratchpad for thoughts, links, half-ideas… anything that doesn't need a checkbox yet." style="flex:1;min-height:280px;width:100%;padding:15px 16px;border-radius:15px;border:2px var(--st,solid) var(--line,#ead9c6);background:var(--input,#fbf3ea);color:var(--text,#5a4634);font-size:14px;line-height:1.6;outline:none;"></textarea>
+        <div style="text-align:right;margin-top:8px;font-size:11.5px;color:var(--muted,#a08b76);font-weight:600;">{{ wordCount }} words · saved</div>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:420,&quot;height&quot;:640}}">
+class Component extends DCLogic {
+  state = {
+    theme: 'cozy', tab: 'today',
+    tasks: [], newTask: '',
+    dumpOpen: false, dumpText: '', sorting: false,
+    notes: '', mascotMsg: '', talking: false,
+    mode: 'focus', secondsLeft: 1500, running: false, pomos: 0,
+    celebrate: false,
+  };
+
+  starDefs = [
+    {t:14,l:12,s:3,d:0},{t:28,l:82,s:2,d:.6},{t:9,l:54,s:2,d:1.2},{t:44,l:24,s:3,d:.3},
+    {t:38,l:70,s:2,d:.9},{t:60,l:88,s:3,d:1.5},{t:56,l:8,s:2,d:.4},{t:72,l:40,s:2,d:1.1},
+    {t:80,l:66,s:3,d:.7},{t:66,l:56,s:2,d:1.8},{t:88,l:20,s:2,d:.2},{t:22,l:38,s:2,d:1.4},
+    {t:50,l:48,s:2,d:2.1},{t:84,l:90,s:2,d:.5},
+  ];
+  sparkleDefs = [
+    {x:-16,y:-4},{x:22,y:0},{x:6,y:-22},{x:30,y:22},{x:-18,y:20},{x:10,y:28},
+  ];
+
+  cats = { Work:'#6C8AE4', Personal:'#E8956B', Health:'#4FB98A', Errands:'#D99A3D', Ideas:'#B98CE0', Urgent:'#E4655A', General:'#A99E90' };
+  prio = { high:'#E4655A', medium:'#D99A3D', low:'#7CB86A' };
+
+  canned = {
+    empty: ["Ooh, blank slate! Dump your brain in there ✨", "Nothing yet? Tell me what's on your mind.", "I'm bored. Give me tasks to boss you around with."],
+    meh: ["Zero done. No pressure. (some pressure.) 👀", "That list won't cross itself off, friend.", "We move! Pick literally any one.", "Bold of you to just... stare at it."],
+    neutral: ["Nice, we're rolling. Keep going!", "Momentum tastes great, huh?", "Look at you being a functional adult.", "One down, the rest are shaking."],
+    happy: ["You're on a roll 🔥 don't stop now!", "Halfway hero. I'm impressed.", "Ok ok, showing off a little 😌", "Certified productive human detected."],
+    ecstatic: ["ALL DONE. I'm so proud 🥹", "You ATE this list up. Respect.", "Legend behavior. Go rest now!", "I'm basically glowing rn ✨"],
+  };
+
+  themes = {
+    cozy:   {'--bg':'#F3E7D7','--card':'#FFFCF7','--text':'#5A4634','--muted':'#A08B76','--accent':'#E8956B','--accent2':'#F5CFA8','--line':'#EAD9C6','--eink':'#5A4634','--st':'solid','--rad':'22px','--font':"'Quicksand',sans-serif",'--head':"'Fredoka',sans-serif",'--chip':'#FBF3EA','--input':'#FBF3EA'},
+    dark:   {'--bg':'#191622','--card':'#241F30','--text':'#EDE7F7','--muted':'#8A80A6','--accent':'#B79CED','--accent2':'#3C3452','--line':'#352E48','--eink':'#EDE7F7','--st':'solid','--rad':'22px','--font':"'Quicksand',sans-serif",'--head':"'Fredoka',sans-serif",'--chip':'#2E2840','--input':'#2E2840'},
+    sketch: {'--bg':'#F7F2E7','--card':'#FFFFFF','--text':'#2C2A26','--muted':'#8B8577','--accent':'#F0803C','--accent2':'#FCE3C8','--line':'#2C2A26','--eink':'#2C2A26','--st':'dashed','--rad':'14px','--font':"'Patrick Hand',cursive",'--head':"'Patrick Hand',cursive",'--chip':'#FBF6EC','--input':'#FBF6EC'},
+  };
+
+  componentDidMount() {
+    try {
+      const t = localStorage.getItem('sprout_tasks');
+      const th = localStorage.getItem('sprout_theme');
+      const n = localStorage.getItem('sprout_notes');
+      const p = localStorage.getItem('sprout_pomos');
+      const patch = {};
+      if (t) patch.tasks = JSON.parse(t);
+      else patch.tasks = [
+        { id:'s1', text:'Water the real plants 🌿', category:'Personal', priority:'low', done:true },
+        { id:'s2', text:'Draft the launch email', category:'Work', priority:'high', done:false },
+        { id:'s3', text:'15-min stretch break', category:'Health', priority:'medium', done:false },
+      ];
+      if (th && this.themes[th]) patch.theme = th;
+      if (n) patch.notes = n;
+      if (p) patch.pomos = parseInt(p) || 0;
+      this.setState(patch);
+    } catch(e) {}
+    this.timer = setInterval(() => {
+      if (!this.state.running) return;
+      this.setState(s => {
+        if (s.secondsLeft <= 1) return this.finishSession(s);
+        return { secondsLeft: s.secondsLeft - 1 };
+      });
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  finishSession(s) {
+    if (s.mode === 'focus') {
+      const pomos = s.pomos + 1;
+      try { localStorage.setItem('sprout_pomos', String(pomos)); } catch(e){}
+      this.setState({ mascotMsg: "Focus session done! Grab some tea 🍵" });
+      return { mode:'break', secondsLeft:300, running:false, pomos };
+    }
+    this.setState({ mascotMsg: "Break's over — let's get back in it 💪" });
+    return { mode:'focus', secondsLeft:1500, running:false };
+  }
+
+  save(next) { try {
+    if (next.tasks) localStorage.setItem('sprout_tasks', JSON.stringify(next.tasks));
+    if (next.theme) localStorage.setItem('sprout_theme', next.theme);
+    if (next.notes !== undefined) localStorage.setItem('sprout_notes', next.notes);
+  } catch(e){} }
+
+  setTheme(t){ this.setState({ theme:t }); this.save({ theme:t }); }
+  setTab(t){ this.setState({ tab:t }); }
+
+  addTask(text, category, priority){
+    const txt = (text||'').trim(); if(!txt) return;
+    const task = { id: Date.now()+''+Math.random().toString(36).slice(2,6), text:txt, category:category||'General', priority:priority||'medium', done:false };
+    this.setState(s => { const tasks=[...s.tasks, task]; this.save({tasks}); return { tasks, newTask:'', mascotMsg:'' }; });
+  }
+  addManual = () => this.addTask(this.state.newTask);
+  onNewTask = e => this.setState({ newTask: e.target.value });
+  onNewTaskKey = e => { if(e.key==='Enter') this.addManual(); };
+
+  toggleTask(id){ this.setState(s => {
+    const tasks=s.tasks.map(t=>t.id===id?{...t,done:!t.done}:t); this.save({tasks});
+    const total=tasks.length, done=tasks.filter(t=>t.done).length;
+    const wasAll = s.tasks.length>0 && s.tasks.every(t=>t.done);
+    const patch = { tasks, mascotMsg:'' };
+    if(total>0 && done===total && !wasAll){
+      const arr=this.canned.ecstatic; patch.mascotMsg=arr[Math.floor(Math.random()*arr.length)]; patch.celebrate=true;
+      clearTimeout(this._celeb); this._celeb=setTimeout(()=>this.setState({celebrate:false}), 2800);
+    }
+    return patch;
+  }); }
+  removeTask(id){ this.setState(s => { const tasks=s.tasks.filter(t=>t.id!==id); this.save({tasks}); return { tasks }; }); }
+
+  toggleDump = () => this.setState(s => ({ dumpOpen: !s.dumpOpen }));
+  onDump = e => this.setState({ dumpText: e.target.value });
+
+  localSort(text){
+    return text.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean).map(x=>({ task:x, category:'General', priority:'medium' }));
+  }
+  async aiSort(){
+    const text = this.state.dumpText.trim();
+    if(!text){ return; }
+    this.setState({ sorting:true });
+    let items = [];
+    try {
+      if(!window.claude) throw new Error('no ai');
+      const res = await window.claude.complete({
+        system: "You turn a messy brain dump into a clean todo list. Return ONLY a JSON array, no prose, no code fences. Each item: {\"task\": short imperative under 8 words, \"category\": one of [Work, Personal, Health, Errands, Ideas, Urgent], \"priority\": one of [high, medium, low]}. Split compound thoughts into separate tasks.",
+        messages: [{ role:'user', content: text }],
+      });
+      let raw = res.trim().replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+      const a = raw.indexOf('['), b = raw.lastIndexOf(']');
+      if(a>=0 && b>a) raw = raw.slice(a, b+1);
+      items = JSON.parse(raw);
+      if(!Array.isArray(items) || !items.length) throw new Error('bad');
+    } catch(e){ items = this.localSort(text); }
+    const valid = Object.keys(this.cats);
+    const newTasks = items.filter(i=>i && i.task).map(i=>({
+      id: Date.now()+''+Math.random().toString(36).slice(2,6),
+      text: String(i.task).slice(0,80),
+      category: valid.includes(i.category)? i.category : 'General',
+      priority: ['high','medium','low'].includes(i.priority)? i.priority : 'medium',
+      done:false,
+    }));
+    this.setState(s => { const tasks=[...s.tasks, ...newTasks]; this.save({tasks}); return { tasks, sorting:false, dumpText:'', dumpOpen:false, mascotMsg: `Sorted that into ${newTasks.length} task${newTasks.length===1?'':'s'} ✨` }; });
+  }
+
+  async talkToMascot(){
+    const tasks=this.state.tasks, done=tasks.filter(t=>t.done).length, total=tasks.length;
+    const bucket = total===0?'empty': done===total?'ecstatic': done/total>=0.5?'happy': done>0?'neutral':'meh';
+    this.setState({ talking:true });
+    let line='';
+    try {
+      if(!window.claude) throw new Error('no ai');
+      line = await window.claude.complete({
+        system: "You are Sprout, a cute cheeky productivity mascot living in a desktop widget. Reply with ONE short line, max 14 words, warm and a little playful. If the user is behind, gently roast them; if they're doing well, hype them up. At most one emoji.",
+        messages: [{ role:'user', content: `I've completed ${done} of ${total} tasks today.` }],
+      });
+      line = (line||'').trim().replace(/^["']|["']$/g,'');
+      if(!line) throw new Error('empty');
+    } catch(e){ const arr=this.canned[bucket]; line=arr[Math.floor(Math.random()*arr.length)]; }
+    this.setState({ talking:false, mascotMsg: line });
+  }
+
+  toggleTimer = () => this.setState(s=>({ running: !s.running }));
+  resetTimer = () => this.setState(s=>({ running:false, secondsLeft: s.mode==='focus'?1500:300 }));
+  setFocusMode = () => this.setState({ mode:'focus', secondsLeft:1500, running:false });
+  setBreakMode = () => this.setState({ mode:'break', secondsLeft:300, running:false });
+
+  onNotes = e => { const notes=e.target.value; this.setState({ notes }); this.save({ notes }); };
+
+  // ---- face computation ----
+  face(mood){
+    const eink='#5A4A2E';
+    const dot={width:'8px',height:'8px',borderRadius:'50%',background:eink};
+    const arc={width:'11px',height:'6px',borderTop:`3px solid ${eink}`,borderRadius:'11px 11px 0 0',background:'transparent'};
+    const sleepy={width:'9px',height:'3px',borderRadius:'3px',background:eink};
+    const smile={width:'16px',height:'8px',borderBottom:`3px solid ${eink}`,borderRadius:'0 0 16px 16px',background:'transparent'};
+    const bigSmile={width:'18px',height:'11px',background:eink,borderRadius:'0 0 40px 40px'};
+    const line={width:'11px',height:'3px',borderRadius:'3px',background:eink};
+    const frown={width:'12px',height:'6px',borderTop:`3px solid ${eink}`,borderRadius:'12px 12px 0 0',background:'transparent'};
+    const oh={width:'8px',height:'8px',border:`2px solid ${eink}`,borderRadius:'50%',background:'transparent'};
+    if(mood==='ecstatic') return { eye:arc, mouth:bigSmile, cheeks:true };
+    if(mood==='happy')    return { eye:arc, mouth:smile, cheeks:true };
+    if(mood==='neutral')  return { eye:dot, mouth:line, cheeks:false };
+    if(mood==='meh')      return { eye:sleepy, mouth:frown, cheeks:false };
+    return { eye:dot, mouth:oh, cheeks:false }; // idle
+  }
+
+  renderVals(){
+    const s=this.state;
+    const theme=this.themes[s.theme]||this.themes.cozy;
+    const rootStyle={ width:'420px', maxWidth:'100%', height:'640px', margin:'0 auto', display:'flex', flexDirection:'column', overflow:'hidden', borderRadius:'26px', background:'var(--bg)', color:'var(--text)', fontFamily:'var(--font)', boxShadow:'0 26px 64px -20px rgba(50,32,16,.45)', position:'relative', ...theme };
+
+    const tasks=s.tasks, done=tasks.filter(t=>t.done).length, total=tasks.length;
+    const pct = total? Math.round(done/total*100):0;
+    const mood = total===0?'idle': done===total?'ecstatic': done/total>=0.5?'happy': done>0?'neutral':'meh';
+    const f=this.face(mood);
+    const leafScale = 0.55 + (pct/100)*0.55;
+
+    const defaults={ idle:"Hey! Ready to make today nice? 🌙", meh:"Nothing done yet... I'm watching 👀", neutral:"We're rolling. Keep it up!", happy:"You're on a roll 🔥", ecstatic:"ALL done. I'm so proud 🥹" };
+    const speechMsg = s.mascotMsg || defaults[mood];
+
+    // theme swatch buttons
+    const swatch={ cozy:'linear-gradient(135deg,#F3E7D7 50%,#E8956B 50%)', dark:'linear-gradient(135deg,#241F30 50%,#B79CED 50%)', sketch:'linear-gradient(135deg,#FFFFFF 50%,#F0803C 50%)' };
+    const titles={ cozy:'Cozy', dark:'Moody', sketch:'Sketch' };
+    const themeBtns=['cozy','dark','sketch'].map(k=>({
+      key:k, title:titles[k], onClick:()=>this.setTheme(k),
+      style:{ width:'22px', height:'22px', borderRadius:'50%', cursor:'pointer', padding:0, background:swatch[k], border: k==='sketch'?'1.5px solid #2C2A26':'none', boxShadow: s.theme===k?'0 0 0 2.5px var(--bg), 0 0 0 4.5px var(--text)':'none', transform: s.theme===k?'scale(1.08)':'scale(1)', transition:'all .15s' },
+    }));
+
+    // tabs
+    const tabDefs=[['today','☑︎ Today'],['focus','⏱ Focus'],['notes','✎ Notes']];
+    const tabBase={ flex:1, padding:'10px 0', borderRadius:'12px 12px 0 0', border:'none', background:'transparent', color:'var(--muted)', fontWeight:600, fontSize:'13px', cursor:'pointer' };
+    const tabs=tabDefs.map(([k,label])=>({
+      key:k, label, onClick:()=>this.setTab(k),
+      style: s.tab===k? { ...tabBase, background:'var(--card)', color:'var(--text)', fontWeight:700, boxShadow:'0 -2px 10px -6px rgba(0,0,0,.3)' } : tabBase,
+    }));
+
+    // task items
+    const taskItems=tasks.map(t=>({
+      ...t, toggle:()=>this.toggleTask(t.id), remove:()=>this.removeTask(t.id),
+      rowStyle:{ display:'flex', alignItems:'flex-start', gap:'11px', padding:'11px 12px', borderRadius:'14px', background:'var(--card)', border:'2px var(--st,solid) var(--line)', opacity: t.done?0.62:1, transition:'opacity .2s' },
+      checkStyle:{ flex:'0 0 auto', width:'23px', height:'23px', marginTop:'1px', borderRadius:'8px', cursor:'pointer', border: t.done?'none':'2px var(--st,solid) var(--line)', background: t.done?'var(--accent)':'transparent', display:'flex', alignItems:'center', justifyContent:'center', padding:0 },
+      textStyle:{ fontSize:'14px', fontWeight:600, color:'var(--text)', lineHeight:1.35, textDecoration: t.done?'line-through':'none', wordBreak:'break-word' },
+      chipStyle:{ fontSize:'10.5px', fontWeight:700, padding:'2px 8px', borderRadius:'20px', color:'#fff', background:this.cats[t.category]||this.cats.General, letterSpacing:'.2px' },
+      dotStyle:{ width:'7px', height:'7px', borderRadius:'50%', background:this.prio[t.priority]||this.prio.medium, display:'inline-block' },
+    }));
+
+    // timer
+    const circ = 2*Math.PI*86;
+    const totalSecs = s.mode==='focus'?1500:300;
+    const dashoff = circ*(1 - s.secondsLeft/totalSecs);
+    const mm=String(Math.floor(s.secondsLeft/60)).padStart(2,'0');
+    const ss=String(s.secondsLeft%60).padStart(2,'0');
+    const modeBtnBase={ padding:'8px 16px', borderRadius:'9px', border:'none', fontSize:'13px', fontWeight:600, cursor:'pointer', background:'transparent', color:'var(--muted)' };
+    const modeActive={ ...modeBtnBase, background:'var(--card)', color:'var(--text)', boxShadow:'0 2px 8px -3px rgba(0,0,0,.3)' };
+
+    return {
+      rootStyle,
+      themeBtns, tabs,
+      // mascot
+      mascotWrapStyle:{ width:'62px', height:'70px', position:'relative', display:'flex', alignItems:'flex-end', justifyContent:'center', animation:'bob 3.6s ease-in-out infinite', flex:'0 0 auto' },
+      leafWrapStyle:{ position:'absolute', top:'-9px', right:'2px', transform:`scale(${leafScale})`, transformOrigin:'center', transition:'transform .4s ease', zIndex:2, fontSize:'14px', color:'#F5C86B', textShadow:'0 0 8px rgba(245,200,107,.8)', lineHeight:1 },
+      bodyStyle:{ width:'56px', height:'56px', borderRadius:'50%', background:'radial-gradient(circle at 38% 32%, #FCF6DD, #EFE0B0)', border:'2px var(--st,solid) rgba(180,150,90,.35)', position:'relative', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'5px', boxShadow:`0 0 ${18+pct/100*24}px rgba(248,232,170,${0.4+pct/100*0.45}), 0 4px 12px -6px rgba(0,0,0,.3)`, transition:'box-shadow .5s ease' },
+      eyeStyle:f.eye, mouthStyle:f.mouth, showCheeks:f.cheeks,
+      // speech
+      speechMsg, talking:s.talking, notTalking:!s.talking, talkToMascot:()=>this.talkToMascot(),
+      // starfield + celebration
+      starFieldStyle:{ position:'absolute', inset:0, zIndex:0, opacity: 0.4+pct/100*0.6, pointerEvents:'none', transition:'opacity .6s ease' },
+      stars: this.starDefs.map((st,i)=>({ key:i, style:{ position:'absolute', top:st.t+'%', left:st.l+'%', width:st.s+'px', height:st.s+'px', borderRadius:'50%', background:'var(--accent)', boxShadow:'0 0 5px var(--accent)', animation:`twinkle ${2.4+ (i%4)*0.7}s ease-in-out ${st.d}s infinite` } })),
+      celebrate: s.celebrate,
+      sparkles: this.sparkleDefs.map((sp,i)=>({ key:i, style:{ position:'absolute', left:'50%', top:'42%', marginLeft:sp.x+'px', marginTop:sp.y+'px', fontSize:'12px', color:'#F5C86B', textShadow:'0 0 6px rgba(245,200,107,.9)', pointerEvents:'none', animation:`burst 1.2s ease-out ${i*0.12}s infinite` } })),
+      // progress
+      doneCount:done, totalCount:total, barStyle:{ height:'100%', width:pct+'%', borderRadius:'9px', background:'linear-gradient(90deg,var(--accent),var(--accent2))', transition:'width .4s ease' },
+      // tab flags
+      isToday:s.tab==='today', isFocus:s.tab==='focus', isNotes:s.tab==='notes',
+      // today
+      newTask:s.newTask, onNewTask:this.onNewTask, onNewTaskKey:this.onNewTaskKey, addManual:this.addManual,
+      toggleDump:this.toggleDump, dumpOpen:s.dumpOpen, dumpText:s.dumpText, onDump:this.onDump,
+      dumpChevronStyle:{ display:'inline-block', transform: s.dumpOpen?'rotate(180deg)':'rotate(0)', transition:'transform .2s', fontSize:'15px' },
+      sorting:s.sorting, notSorting:!s.sorting, aiSort:()=>this.aiSort(),
+      sortBtnStyle:{ marginTop:'8px', width:'100%', padding:'11px', borderRadius:'13px', border:'none', background: s.sorting?'var(--muted)':'var(--accent)', color:'#fff', fontSize:'14px', fontWeight:700, cursor: s.sorting?'default':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' },
+      taskItems, hasTasks: total>0, noTasks: total===0,
+      // focus
+      circ, dashoff, timeText:`${mm}:${ss}`, modeLabel: s.mode==='focus'?'Focus':'Break', pomos:s.pomos,
+      toggleTimer:this.toggleTimer, resetTimer:this.resetTimer, runLabel: s.running?'❚❚':'▶',
+      runBtnStyle:{ width:'62px', height:'62px', borderRadius:'50%', border:'none', background:'var(--accent)', color:'#fff', fontSize:'20px', cursor:'pointer', boxShadow:'0 8px 20px -6px var(--accent)', display:'flex', alignItems:'center', justifyContent:'center' },
+      setFocusMode:this.setFocusMode, setBreakMode:this.setBreakMode,
+      focusModeStyle: s.mode==='focus'?modeActive:modeBtnBase,
+      breakModeStyle: s.mode==='break'?modeActive:modeBtnBase,
+      // notes
+      notes:s.notes, onNotes:this.onNotes, wordCount: s.notes.trim()? s.notes.trim().split(/\s+/).length : 0,
+    };
+  }
+}
+</script>
+</body>
+</html>
