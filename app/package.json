@@ -1,0 +1,46 @@
+{
+  "name": "sprout-widget",
+  "productName": "Sprout",
+  "version": "1.0.0",
+  "description": "A cozy, mood-shifting to-do widget with a moon mascot, AI brain-dump sorting, a pomodoro timer, and a notes scratchpad — for Mac and Windows.",
+  "main": "electron/main.js",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
+    "electron:build": "vite build && electron-builder"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "electron-store": "^8.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^5.4.11",
+    "wait-on": "^8.0.1",
+    "@vitejs/plugin-react": "^4.3.4"
+  },
+  "build": {
+    "appId": "com.sprout.widget",
+    "productName": "Sprout",
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

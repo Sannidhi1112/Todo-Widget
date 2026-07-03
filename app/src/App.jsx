@@ -1,0 +1,478 @@
+import React, { useEffect, useRef, useState } from 'react';
+import SettingsModal from './SettingsModal.jsx';
+
+const STAR_DEFS = [
+  { t: 14, l: 12, s: 3, d: 0 }, { t: 28, l: 82, s: 2, d: .6 }, { t: 9, l: 54, s: 2, d: 1.2 }, { t: 44, l: 24, s: 3, d: .3 },
+  { t: 38, l: 70, s: 2, d: .9 }, { t: 60, l: 88, s: 3, d: 1.5 }, { t: 56, l: 8, s: 2, d: .4 }, { t: 72, l: 40, s: 2, d: 1.1 },
+  { t: 80, l: 66, s: 3, d: .7 }, { t: 66, l: 56, s: 2, d: 1.8 }, { t: 88, l: 20, s: 2, d: .2 }, { t: 22, l: 38, s: 2, d: 1.4 },
+  { t: 50, l: 48, s: 2, d: 2.1 }, { t: 84, l: 90, s: 2, d: .5 },
+];
+const SPARKLE_DEFS = [
+  { x: -16, y: -4 }, { x: 22, y: 0 }, { x: 6, y: -22 }, { x: 30, y: 22 }, { x: -18, y: 20 }, { x: 10, y: 28 },
+];
+
+const CATS = { Work: '#6C8AE4', Personal: '#E8956B', Health: '#4FB98A', Errands: '#D99A3D', Ideas: '#B98CE0', Urgent: '#E4655A', General: '#A99E90' };
+const PRIO = { high: '#E4655A', medium: '#D99A3D', low: '#7CB86A' };
+
+const CANNED = {
+  empty: ["Ooh, blank slate! Dump your brain in there ✨", "Nothing yet? Tell me what's on your mind.", "I'm bored. Give me tasks to boss you around with."],
+  meh: ["Zero done. No pressure. (some pressure.) 👀", "That list won't cross itself off, friend.", "We move! Pick literally any one.", "Bold of you to just... stare at it."],
+  neutral: ["Nice, we're rolling. Keep going!", "Momentum tastes great, huh?", "Look at you being a functional adult.", "One down, the rest are shaking."],
+  happy: ["You're on a roll 🔥 don't stop now!", "Halfway hero. I'm impressed.", "Ok ok, showing off a little 😌", "Certified productive human detected."],
+  ecstatic: ["ALL DONE. I'm so proud 🥹", "You ATE this list up. Respect.", "Legend behavior. Go rest now!", "I'm basically glowing rn ✨"],
+};
+
+const THEMES = {
+  cozy: { '--bg': '#F3E7D7', '--card': '#FFFCF7', '--text': '#5A4634', '--muted': '#A08B76', '--accent': '#E8956B', '--accent2': '#F5CFA8', '--line': '#EAD9C6', '--eink': '#5A4634', '--st': 'solid', '--rad': '22px', '--font': "'Quicksand',sans-serif", '--head': "'Fredoka',sans-serif", '--chip': '#FBF3EA', '--input': '#FBF3EA' },
+  dark: { '--bg': '#191622', '--card': '#241F30', '--text': '#EDE7F7', '--muted': '#8A80A6', '--accent': '#B79CED', '--accent2': '#3C3452', '--line': '#352E48', '--eink': '#EDE7F7', '--st': 'solid', '--rad': '22px', '--font': "'Quicksand',sans-serif", '--head': "'Fredoka',sans-serif", '--chip': '#2E2840', '--input': '#2E2840' },
+  sketch: { '--bg': '#F7F2E7', '--card': '#FFFFFF', '--text': '#2C2A26', '--muted': '#8B8577', '--accent': '#F0803C', '--accent2': '#FCE3C8', '--line': '#2C2A26', '--eink': '#2C2A26', '--st': 'dashed', '--rad': '14px', '--font': "'Patrick Hand',cursive", '--head': "'Patrick Hand',cursive", '--chip': '#FBF6EC', '--input': '#FBF6EC' },
+};
+
+const DEFAULT_TASKS = [
+  { id: 's1', text: 'Water the real plants 🌿', category: 'Personal', priority: 'low', done: true },
+  { id: 's2', text: 'Draft the launch email', category: 'Work', priority: 'high', done: false },
+  { id: 's3', text: '15-min stretch break', category: 'Health', priority: 'medium', done: false },
+];
+
+const hasBridge = typeof window !== 'undefined' && !!window.sprout;
+
+function face(mood) {
+  const eink = '#5A4A2E';
+  const dot = { width: '8px', height: '8px', borderRadius: '50%', background: eink };
+  const arc = { width: '11px', height: '6px', borderTop: `3px solid ${eink}`, borderRadius: '11px 11px 0 0', background: 'transparent' };
+  const sleepy = { width: '9px', height: '3px', borderRadius: '3px', background: eink };
+  const smile = { width: '16px', height: '8px', borderBottom: `3px solid ${eink}`, borderRadius: '0 0 16px 16px', background: 'transparent' };
+  const bigSmile = { width: '18px', height: '11px', background: eink, borderRadius: '0 0 40px 40px' };
+  const line = { width: '11px', height: '3px', borderRadius: '3px', background: eink };
+  const frown = { width: '12px', height: '6px', borderTop: `3px solid ${eink}`, borderRadius: '12px 12px 0 0', background: 'transparent' };
+  const oh = { width: '8px', height: '8px', border: `2px solid ${eink}`, borderRadius: '50%', background: 'transparent' };
+  if (mood === 'ecstatic') return { eye: arc, mouth: bigSmile, cheeks: true };
+  if (mood === 'happy') return { eye: arc, mouth: smile, cheeks: true };
+  if (mood === 'neutral') return { eye: dot, mouth: line, cheeks: false };
+  if (mood === 'meh') return { eye: sleepy, mouth: frown, cheeks: false };
+  return { eye: dot, mouth: oh, cheeks: false }; // idle
+}
+
+function localSort(text) {
+  return text.split(/[\n,;]+/).map(x => x.trim()).filter(Boolean).map(x => ({ task: x, category: 'General', priority: 'medium' }));
+}
+
+const noDrag = { WebkitAppRegion: 'no-drag' };
+
+export default function App() {
+  const [state, setState] = useState({
+    theme: 'cozy', tab: 'today',
+    tasks: DEFAULT_TASKS, newTask: '',
+    dumpOpen: false, dumpText: '', sorting: false,
+    notes: '', mascotMsg: '', talking: false,
+    mode: 'focus', secondsLeft: 1500, running: false, pomos: 0,
+    celebrate: false,
+    showSettings: false, apiKeyPresent: false, apiKeyDraft: '', settingsSaved: false,
+  });
+  const celebTimeout = useRef(null);
+
+  const patch = (obj) => setState(s => ({ ...s, ...(typeof obj === 'function' ? obj(s) : obj) }));
+
+  // ---- mount: load persisted state ----
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem('sprout_tasks');
+      const th = localStorage.getItem('sprout_theme');
+      const n = localStorage.getItem('sprout_notes');
+      const p = localStorage.getItem('sprout_pomos');
+      const loaded = {};
+      if (t) loaded.tasks = JSON.parse(t);
+      if (th && THEMES[th]) loaded.theme = th;
+      if (n) loaded.notes = n;
+      if (p) loaded.pomos = parseInt(p) || 0;
+      if (Object.keys(loaded).length) patch(loaded);
+    } catch (e) { /* ignore corrupt storage */ }
+
+    if (hasBridge) {
+      window.sprout.getApiKeyPresent().then(present => patch({ apiKeyPresent: !!present }));
+    }
+  }, []);
+
+  // ---- timer tick ----
+  useEffect(() => {
+    const id = setInterval(() => {
+      setState(s => {
+        if (!s.running) return s;
+        if (s.secondsLeft <= 1) return finishSession(s);
+        return { ...s, secondsLeft: s.secondsLeft - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  function finishSession(s) {
+    if (s.mode === 'focus') {
+      const pomos = s.pomos + 1;
+      try { localStorage.setItem('sprout_pomos', String(pomos)); } catch (e) {}
+      return { ...s, mode: 'break', secondsLeft: 300, running: false, pomos, mascotMsg: 'Focus session done! Grab some tea 🍵' };
+    }
+    return { ...s, mode: 'focus', secondsLeft: 1500, running: false, mascotMsg: "Break's over — let's get back in it 💪" };
+  }
+
+  function save(next) {
+    try {
+      if (next.tasks) localStorage.setItem('sprout_tasks', JSON.stringify(next.tasks));
+      if (next.theme) localStorage.setItem('sprout_theme', next.theme);
+      if (next.notes !== undefined) localStorage.setItem('sprout_notes', next.notes);
+    } catch (e) {}
+  }
+
+  const setTheme = (t) => { patch({ theme: t }); save({ theme: t }); };
+  const setTab = (t) => patch({ tab: t });
+
+  function addTask(text, category, priority) {
+    const txt = (text || '').trim();
+    if (!txt) return;
+    const task = { id: Date.now() + '' + Math.random().toString(36).slice(2, 6), text: txt, category: category || 'General', priority: priority || 'medium', done: false };
+    setState(s => { const tasks = [...s.tasks, task]; save({ tasks }); return { ...s, tasks, newTask: '', mascotMsg: '' }; });
+  }
+  const addManual = () => addTask(state.newTask);
+  const onNewTask = (e) => patch({ newTask: e.target.value });
+  const onNewTaskKey = (e) => { if (e.key === 'Enter') addManual(); };
+
+  function toggleTask(id) {
+    setState(s => {
+      const tasks = s.tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+      save({ tasks });
+      const total = tasks.length, done = tasks.filter(t => t.done).length;
+      const wasAll = s.tasks.length > 0 && s.tasks.every(t => t.done);
+      const next = { ...s, tasks, mascotMsg: '' };
+      if (total > 0 && done === total && !wasAll) {
+        const arr = CANNED.ecstatic;
+        next.mascotMsg = arr[Math.floor(Math.random() * arr.length)];
+        next.celebrate = true;
+        clearTimeout(celebTimeout.current);
+        celebTimeout.current = setTimeout(() => patch({ celebrate: false }), 2800);
+      }
+      return next;
+    });
+  }
+  function removeTask(id) {
+    setState(s => { const tasks = s.tasks.filter(t => t.id !== id); save({ tasks }); return { ...s, tasks }; });
+  }
+
+  const toggleDump = () => patch(s => ({ dumpOpen: !s.dumpOpen }));
+  const onDump = (e) => patch({ dumpText: e.target.value });
+
+  async function aiSort() {
+    const text = state.dumpText.trim();
+    if (!text) return;
+    patch({ sorting: true });
+    let items = [];
+    try {
+      if (!hasBridge) throw new Error('no ai');
+      const res = await window.sprout.sortBrainDump(text);
+      if (!res.ok) throw new Error(res.reason || 'error');
+      let raw = res.text.trim().replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+      const a = raw.indexOf('['), b = raw.lastIndexOf(']');
+      if (a >= 0 && b > a) raw = raw.slice(a, b + 1);
+      items = JSON.parse(raw);
+      if (!Array.isArray(items) || !items.length) throw new Error('bad');
+    } catch (e) {
+      items = localSort(text);
+    }
+    const valid = Object.keys(CATS);
+    const newTasks = items.filter(i => i && i.task).map(i => ({
+      id: Date.now() + '' + Math.random().toString(36).slice(2, 6),
+      text: String(i.task).slice(0, 80),
+      category: valid.includes(i.category) ? i.category : 'General',
+      priority: ['high', 'medium', 'low'].includes(i.priority) ? i.priority : 'medium',
+      done: false,
+    }));
+    setState(s => {
+      const tasks = [...s.tasks, ...newTasks];
+      save({ tasks });
+      return { ...s, tasks, sorting: false, dumpText: '', dumpOpen: false, mascotMsg: `Sorted that into ${newTasks.length} task${newTasks.length === 1 ? '' : 's'} ✨` };
+    });
+  }
+
+  async function talkToMascot() {
+    const tasks = state.tasks, done = tasks.filter(t => t.done).length, total = tasks.length;
+    const bucket = total === 0 ? 'empty' : done === total ? 'ecstatic' : done / total >= 0.5 ? 'happy' : done > 0 ? 'neutral' : 'meh';
+    patch({ talking: true });
+    let line = '';
+    try {
+      if (!hasBridge) throw new Error('no ai');
+      const res = await window.sprout.mascotLine(`I've completed ${done} of ${total} tasks today.`);
+      if (!res.ok) throw new Error(res.reason || 'error');
+      line = (res.text || '').trim().replace(/^["']|["']$/g, '');
+      if (!line) throw new Error('empty');
+    } catch (e) {
+      const arr = CANNED[bucket];
+      line = arr[Math.floor(Math.random() * arr.length)];
+    }
+    patch({ talking: false, mascotMsg: line });
+  }
+
+  const toggleTimer = () => patch(s => ({ running: !s.running }));
+  const resetTimer = () => patch(s => ({ running: false, secondsLeft: s.mode === 'focus' ? 1500 : 300 }));
+  const setFocusMode = () => patch({ mode: 'focus', secondsLeft: 1500, running: false });
+  const setBreakMode = () => patch({ mode: 'break', secondsLeft: 300, running: false });
+
+  const onNotes = (e) => { const notes = e.target.value; patch({ notes }); save({ notes }); };
+
+  // ---- settings ----
+  const openSettings = () => patch(s => ({ showSettings: true, apiKeyDraft: '', settingsSaved: false }));
+  const closeSettings = () => patch({ showSettings: false });
+  const onApiKeyDraft = (e) => patch({ apiKeyDraft: e.target.value });
+  async function saveApiKey() {
+    if (!hasBridge) return;
+    await window.sprout.setApiKey(state.apiKeyDraft);
+    patch({ apiKeyPresent: !!state.apiKeyDraft.trim(), apiKeyDraft: '', settingsSaved: true });
+  }
+  async function clearApiKey() {
+    if (!hasBridge) return;
+    await window.sprout.clearApiKey();
+    patch({ apiKeyPresent: false, apiKeyDraft: '', settingsSaved: false });
+  }
+
+  // ================= derived render values =================
+  const s = state;
+  const theme = THEMES[s.theme] || THEMES.cozy;
+  const tasks = s.tasks, done = tasks.filter(t => t.done).length, total = tasks.length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const mood = total === 0 ? 'idle' : done === total ? 'ecstatic' : done / total >= 0.5 ? 'happy' : done > 0 ? 'neutral' : 'meh';
+  const f = face(mood);
+  const leafScale = 0.55 + (pct / 100) * 0.55;
+
+  const defaults = { idle: 'Hey! Ready to make today nice? 🌙', meh: "Nothing done yet... I'm watching 👀", neutral: "We're rolling. Keep it up!", happy: "You're on a roll 🔥", ecstatic: "ALL done. I'm so proud 🥹" };
+  const speechMsg = s.mascotMsg || defaults[mood];
+
+  const swatch = { cozy: 'linear-gradient(135deg,#F3E7D7 50%,#E8956B 50%)', dark: 'linear-gradient(135deg,#241F30 50%,#B79CED 50%)', sketch: 'linear-gradient(135deg,#FFFFFF 50%,#F0803C 50%)' };
+  const titles = { cozy: 'Cozy', dark: 'Moody', sketch: 'Sketch' };
+
+  const tabDefs = [['today', '☑︎ Today'], ['focus', '⏱ Focus'], ['notes', '✎ Notes']];
+  const tabBase = { flex: 1, padding: '10px 0', borderRadius: '12px 12px 0 0', border: 'none', background: 'transparent', color: 'var(--muted)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', ...noDrag };
+
+  const circ = 2 * Math.PI * 86;
+  const totalSecs = s.mode === 'focus' ? 1500 : 300;
+  const dashoff = circ * (1 - s.secondsLeft / totalSecs);
+  const mm = String(Math.floor(s.secondsLeft / 60)).padStart(2, '0');
+  const ss = String(s.secondsLeft % 60).padStart(2, '0');
+  const modeBtnBase = { padding: '8px 16px', borderRadius: '9px', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', background: 'transparent', color: 'var(--muted)', ...noDrag };
+  const modeActive = { ...modeBtnBase, background: 'var(--card)', color: 'var(--text)', boxShadow: '0 2px 8px -3px rgba(0,0,0,.3)' };
+
+  const rootStyle = {
+    width: '420px', maxWidth: '100%', height: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column',
+    overflow: 'hidden', borderRadius: '26px', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font)',
+    boxShadow: '0 26px 64px -20px rgba(50,32,16,.45)', position: 'relative', WebkitAppRegion: 'drag', ...theme,
+  };
+
+  return (
+    <div className={`sprout-app-shell${hasBridge ? '' : ' browser-mode'}`}>
+      <div style={rootStyle}>
+
+        {/* starfield */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, opacity: 0.4 + pct / 100 * 0.6, pointerEvents: 'none', transition: 'opacity .6s ease' }}>
+          {STAR_DEFS.map((st, i) => (
+            <div key={i} style={{ position: 'absolute', top: st.t + '%', left: st.l + '%', width: st.s + 'px', height: st.s + 'px', borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 0 5px var(--accent)', animation: `twinkle ${2.4 + (i % 4) * 0.7}s ease-in-out ${st.d}s infinite` }} />
+          ))}
+        </div>
+
+        {/* drag handle */}
+        <div style={{ position: 'absolute', top: 9, left: '50%', transform: 'translateX(-50%)', width: 38, height: 4, borderRadius: 4, background: 'var(--line,#e5d6c4)', opacity: .7, zIndex: 2 }} />
+
+        {/* theme switcher + settings */}
+        <div style={{ position: 'absolute', top: 16, right: 18, display: 'flex', gap: 8, zIndex: 5, ...noDrag }}>
+          {['cozy', 'dark', 'sketch'].map(k => (
+            <button
+              key={k}
+              onClick={() => setTheme(k)}
+              title={titles[k]}
+              style={{
+                width: 22, height: 22, borderRadius: '50%', cursor: 'pointer', padding: 0, background: swatch[k],
+                border: k === 'sketch' ? '1.5px solid #2C2A26' : 'none',
+                boxShadow: s.theme === k ? '0 0 0 2.5px var(--bg), 0 0 0 4.5px var(--text)' : 'none',
+                transform: s.theme === k ? 'scale(1.08)' : 'scale(1)', transition: 'all .15s',
+              }}
+            />
+          ))}
+          <button
+            onClick={openSettings}
+            title="AI settings"
+            style={{ width: 22, height: 22, borderRadius: '50%', cursor: 'pointer', padding: 0, background: 'var(--chip,#fbf3ea)', border: '1.5px solid var(--line,#ead9c6)', color: 'var(--muted,#a08b76)', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+          >{'⚙'}</button>
+        </div>
+
+        {/* HEADER */}
+        <div style={{ padding: '26px 20px 14px', flex: '0 0 auto', position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, paddingRight: 70 }}>
+            {/* mascot */}
+            <div style={{ width: 62, height: 70, position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: 'bob 3.6s ease-in-out infinite', flex: '0 0 auto' }}>
+              <div style={{ position: 'absolute', top: -9, right: 2, transform: `scale(${leafScale})`, transformOrigin: 'center', transition: 'transform .4s ease', zIndex: 2, fontSize: 14, color: '#F5C86B', textShadow: '0 0 8px rgba(245,200,107,.8)', lineHeight: 1 }}>{'✦'}</div>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'radial-gradient(circle at 38% 32%, #FCF6DD, #EFE0B0)', border: '2px var(--st,solid) rgba(180,150,90,.35)', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, boxShadow: `0 0 ${18 + pct / 100 * 24}px rgba(248,232,170,${0.4 + pct / 100 * 0.45}), 0 4px 12px -6px rgba(0,0,0,.3)`, transition: 'box-shadow .5s ease' }}>
+                <div style={{ position: 'absolute', top: 9, right: 9, width: 8, height: 8, borderRadius: '50%', background: 'rgba(120,95,40,.12)' }} />
+                <div style={{ position: 'absolute', bottom: 8, left: 8, width: 5, height: 5, borderRadius: '50%', background: 'rgba(120,95,40,.12)' }} />
+                <div style={{ display: 'flex', gap: 9 }}>
+                  <div style={f.eye} />
+                  <div style={f.eye} />
+                </div>
+                <div style={f.mouth} />
+                {f.cheeks && (
+                  <>
+                    <div style={{ position: 'absolute', left: 7, top: 31, width: 7, height: 7, borderRadius: '50%', background: 'rgba(232,124,107,.55)' }} />
+                    <div style={{ position: 'absolute', right: 7, top: 31, width: 7, height: 7, borderRadius: '50%', background: 'rgba(232,124,107,.55)' }} />
+                  </>
+                )}
+              </div>
+              {s.celebrate && SPARKLE_DEFS.map((sp, i) => (
+                <div key={i} style={{ position: 'absolute', left: '50%', top: '42%', marginLeft: sp.x, marginTop: sp.y, fontSize: 12, color: '#F5C86B', textShadow: '0 0 6px rgba(245,200,107,.9)', pointerEvents: 'none', animation: `burst 1.2s ease-out ${i * 0.12}s infinite` }}>{'✦'}</div>
+              ))}
+            </div>
+            {/* speech bubble */}
+            <div style={{ position: 'relative', flex: 1, background: 'var(--card,#fff)', border: '2px var(--st,solid) var(--line,#ead9c6)', borderRadius: 16, padding: '10px 13px', minHeight: 52, display: 'flex', alignItems: 'center', boxShadow: '0 4px 14px -8px rgba(0,0,0,.25)' }}>
+              {s.talking ? (
+                <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--muted,#aaa)', animation: 'dots 1.2s infinite' }} />
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--muted,#aaa)', animation: 'dots 1.2s .2s infinite' }} />
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--muted,#aaa)', animation: 'dots 1.2s .4s infinite' }} />
+                </div>
+              ) : (
+                <span style={{ fontSize: 13.5, lineHeight: 1.35, fontWeight: 500, color: 'var(--text,#5a4634)' }}>{speechMsg}</span>
+              )}
+              <div style={{ position: 'absolute', left: -8, bottom: 15, width: 14, height: 14, background: 'var(--card,#fff)', borderLeft: '2px var(--st,solid) var(--line,#ead9c6)', borderBottom: '2px var(--st,solid) var(--line,#ead9c6)', transform: 'rotate(45deg)' }} />
+            </div>
+            <button onClick={talkToMascot} title="Talk to Sprout" style={{ flex: '0 0 auto', width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--accent,#e8956b)', color: '#fff', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px -4px var(--accent,#e8956b)', alignSelf: 'flex-end', ...noDrag }}>{'💬'}</button>
+          </div>
+
+          {/* progress */}
+          <div style={{ marginTop: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted,#a08b76)', letterSpacing: .3 }}>TODAY'S PROGRESS</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text,#5a4634)' }}>{done}/{total}</span>
+            </div>
+            <div style={{ height: 9, borderRadius: 9, background: 'var(--chip,#fbf3ea)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: pct + '%', borderRadius: 9, background: 'linear-gradient(90deg,var(--accent),var(--accent2))', transition: 'width .4s ease' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* TABS */}
+        <div style={{ display: 'flex', gap: 6, padding: '4px 20px 0', flex: '0 0 auto', position: 'relative', zIndex: 1 }}>
+          {tabDefs.map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              style={s.tab === k ? { ...tabBase, background: 'var(--card)', color: 'var(--text)', fontWeight: 700, boxShadow: '0 -2px 10px -6px rgba(0,0,0,.3)' } : tabBase}
+            >{label}</button>
+          ))}
+        </div>
+
+        {/* CONTENT */}
+        <div className="sprout-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 20px', position: 'relative', zIndex: 1, ...noDrag }}>
+
+          {s.tab === 'today' && (
+            <div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <input value={s.newTask} onChange={onNewTask} onKeyDown={onNewTaskKey} placeholder="Add a task…" style={{ flex: 1, padding: '11px 14px', borderRadius: 13, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 14, fontWeight: 500, outline: 'none' }} />
+                <button onClick={addManual} style={{ flex: '0 0 auto', width: 44, borderRadius: 13, border: 'none', background: 'var(--accent,#e8956b)', color: '#fff', fontSize: 22, cursor: 'pointer' }}>+</button>
+              </div>
+
+              <button onClick={toggleDump} style={{ width: '100%', textAlign: 'left', padding: '9px 13px', borderRadius: 12, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'transparent', color: 'var(--muted,#a08b76)', fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>{'🧠'} Brain dump — let AI sort it</span>
+                <span style={{ display: 'inline-block', transform: s.dumpOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .2s', fontSize: 15 }}>{'⌄'}</span>
+              </button>
+
+              {s.dumpOpen && (
+                <div style={{ marginBottom: 14, animation: 'rise .25s ease' }}>
+                  <textarea value={s.dumpText} onChange={onDump} placeholder="Type everything swirling in your head — one big mess is fine. Sprout will untangle it into clean tasks with categories & priorities." rows={4} style={{ width: '100%', padding: '12px 14px', borderRadius: 13, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 13.5, lineHeight: 1.45, outline: 'none' }} />
+                  <button onClick={aiSort} disabled={s.sorting} style={{ marginTop: 8, width: '100%', padding: 11, borderRadius: 13, border: 'none', background: s.sorting ? 'var(--muted)' : 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: s.sorting ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    {s.sorting ? (
+                      <>
+                        <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid rgba(255,255,255,.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+                        <span>Untangling…</span>
+                      </>
+                    ) : (
+                      <span>{'✨'} Sort into tasks</span>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {total > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {tasks.map(t => (
+                    <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 12px', borderRadius: 14, background: 'var(--card)', border: '2px var(--st,solid) var(--line)', opacity: t.done ? 0.62 : 1, transition: 'opacity .2s' }}>
+                      <button onClick={() => toggleTask(t.id)} style={{ flex: '0 0 auto', width: 23, height: 23, marginTop: 1, borderRadius: 8, cursor: 'pointer', border: t.done ? 'none' : '2px var(--st,solid) var(--line)', background: t.done ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                        {t.done && <span style={{ color: '#fff', fontSize: 13, fontWeight: 700, lineHeight: 1 }}>{'✓'}</span>}
+                      </button>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', lineHeight: 1.35, textDecoration: t.done ? 'line-through' : 'none', wordBreak: 'break-word' }}>{t.text}</div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, color: '#fff', background: CATS[t.category] || CATS.General, letterSpacing: .2 }}>{t.category}</span>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: PRIO[t.priority] || PRIO.medium, display: 'inline-block' }} />
+                          <span style={{ fontSize: 10.5, color: 'var(--muted,#a08b76)', textTransform: 'capitalize' }}>{t.priority}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => removeTask(t.id)} style={{ flex: '0 0 auto', width: 26, height: 26, border: 'none', background: 'transparent', color: 'var(--muted,#a08b76)', fontSize: 16, cursor: 'pointer', opacity: .5, borderRadius: 8 }}>{'×'}</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '30px 16px', color: 'var(--muted,#a08b76)' }}>
+                  <div style={{ fontSize: 34, marginBottom: 8 }}>{'🌙'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>All clear! Add a task or dump your brain above.</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {s.tab === 'focus' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 6 }}>
+              <div style={{ display: 'flex', gap: 6, background: 'var(--chip,#fbf3ea)', padding: 4, borderRadius: 12, marginBottom: 22 }}>
+                <button onClick={setFocusMode} style={s.mode === 'focus' ? modeActive : modeBtnBase}>{'🍅'} Focus</button>
+                <button onClick={setBreakMode} style={s.mode === 'break' ? modeActive : modeBtnBase}>{'🍵'} Break</button>
+              </div>
+
+              <div style={{ position: 'relative', width: 194, height: 194 }}>
+                <svg width="194" height="194" viewBox="0 0 194 194" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="97" cy="97" r="86" fill="none" stroke="var(--chip,#fbf3ea)" strokeWidth="12" />
+                  <circle cx="97" cy="97" r="86" fill="none" stroke="var(--accent,#e8956b)" strokeWidth="12" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={dashoff} style={{ transition: 'stroke-dashoffset .5s ease' }} />
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ fontSize: 44, fontWeight: 700, fontFamily: "var(--head,'Fredoka',sans-serif)", color: 'var(--text,#5a4634)', letterSpacing: 1 }}>{mm}:{ss}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted,#a08b76)', textTransform: 'uppercase', letterSpacing: 1 }}>{s.mode === 'focus' ? 'Focus' : 'Break'}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 26 }}>
+                <button onClick={toggleTimer} style={{ width: 62, height: 62, borderRadius: '50%', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 20, cursor: 'pointer', boxShadow: '0 8px 20px -6px var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.running ? '❚❚' : '▶'}</button>
+                <button onClick={resetTimer} style={{ width: 52, height: 52, borderRadius: '50%', border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'transparent', color: 'var(--text,#5a4634)', fontSize: 18, cursor: 'pointer' }}>{'↺'}</button>
+              </div>
+
+              <div style={{ marginTop: 24, fontSize: 13, fontWeight: 600, color: 'var(--muted,#a08b76)' }}>
+                {'🍅'} {s.pomos} focus sessions today
+              </div>
+            </div>
+          )}
+
+          {s.tab === 'notes' && (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <textarea value={s.notes} onChange={onNotes} placeholder="A little scratchpad for thoughts, links, half-ideas… anything that doesn't need a checkbox yet." style={{ flex: 1, minHeight: 280, width: '100%', padding: '15px 16px', borderRadius: 15, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 14, lineHeight: 1.6, outline: 'none' }} />
+              <div style={{ textAlign: 'right', marginTop: 8, fontSize: 11.5, color: 'var(--muted,#a08b76)', fontWeight: 600 }}>{s.notes.trim() ? s.notes.trim().split(/\s+/).length : 0} words · saved</div>
+            </div>
+          )}
+
+        </div>
+
+        {s.showSettings && (
+          <SettingsModal
+            hasBridge={hasBridge}
+            apiKeyPresent={s.apiKeyPresent}
+            apiKeyDraft={s.apiKeyDraft}
+            settingsSaved={s.settingsSaved}
+            onChangeDraft={onApiKeyDraft}
+            onSave={saveApiKey}
+            onClear={clearApiKey}
+            onClose={closeSettings}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
