@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import SettingsModal from './SettingsModal.jsx';
 import CalendarModal from './CalendarModal.jsx';
 import RolloverModal from './RolloverModal.jsx';
+import Auth from './Auth.jsx';
+import { supabase, supabaseConfigured } from './supabaseClient.js';
 import { todayKey, parseDateKey, formatLabel } from './dateUtils.js';
 
 const STAR_DEFS = [
@@ -78,6 +80,7 @@ export default function App() {
     celebrate: false,
     showSettings: false, apiKeyPresent: false, apiKeyDraft: '', settingsSaved: false,
     showCalendar: false, rolloverPending: null,
+    authChecked: false, session: null,
   });
   const celebTimeout = useRef(null);
   const [calCursor, setCalCursor] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; });
@@ -86,51 +89,107 @@ export default function App() {
 
   const patch = (obj) => setState(s => ({ ...s, ...(typeof obj === 'function' ? obj(s) : obj) }));
 
-  // ---- mount: load persisted state, migrate legacy keys, detect day rollover ----
-  useEffect(() => {
+  // ---- figure out today's rollover state against a loaded `days` map ----
+  function withRollover(days) {
+    const tKey = todayKey();
+    const lastActive = localStorage.getItem('sprout_last_active_date') || tKey;
+    let pending = null;
+    if (lastActive !== tKey) {
+      const prevEntry = days[lastActive];
+      if (prevEntry && !prevEntry.resolved) {
+        const unchecked = prevEntry.tasks.filter(t => !t.done);
+        if (unchecked.length) pending = { date: lastActive, tasks: unchecked };
+      }
+    }
+    if (!days[tKey]) days[tKey] = { ...EMPTY_DAY };
     try {
-      let days = null;
-      const rawDays = localStorage.getItem('sprout_days');
-      if (rawDays) days = JSON.parse(rawDays);
-
-      if (!days) {
-        const legacyTasks = localStorage.getItem('sprout_tasks');
-        const legacyNotes = localStorage.getItem('sprout_notes');
-        const legacyPomos = localStorage.getItem('sprout_pomos');
-        days = {};
-        days[todayKey()] = {
-          tasks: legacyTasks ? JSON.parse(legacyTasks) : DEFAULT_TASKS,
-          notes: legacyNotes || '',
-          pomos: legacyPomos ? (parseInt(legacyPomos) || 0) : 0,
-          resolved: false,
-        };
-      }
-
-      const tKey = todayKey();
-      const lastActive = localStorage.getItem('sprout_last_active_date') || tKey;
-      let pending = null;
-      if (lastActive !== tKey) {
-        const prevEntry = days[lastActive];
-        if (prevEntry && !prevEntry.resolved) {
-          const unchecked = prevEntry.tasks.filter(t => !t.done);
-          if (unchecked.length) pending = { date: lastActive, tasks: unchecked };
-        }
-      }
-      if (!days[tKey]) days[tKey] = { ...EMPTY_DAY };
       localStorage.setItem('sprout_days', JSON.stringify(days));
       localStorage.setItem('sprout_last_active_date', tKey);
+    } catch (e) {}
+    return { days, tKey, pending };
+  }
 
-      const th = localStorage.getItem('sprout_theme');
-      const fm = localStorage.getItem('sprout_focus_minutes');
-      const bm = localStorage.getItem('sprout_break_minutes');
-      const patchObj = { days, todayDate: tKey, rolloverPending: pending };
-      if (th && THEMES[th]) patchObj.theme = th;
-      if (fm) patchObj.focusMinutes = parseInt(fm) || 25;
-      if (bm) patchObj.breakMinutes = parseInt(bm) || 5;
-      patch(patchObj);
-    } catch (e) { /* ignore corrupt storage */ }
+  function localPrefsPatch() {
+    const th = localStorage.getItem('sprout_theme');
+    const fm = localStorage.getItem('sprout_focus_minutes');
+    const bm = localStorage.getItem('sprout_break_minutes');
+    const p = {};
+    if (th && THEMES[th]) p.theme = th;
+    if (fm) p.focusMinutes = parseInt(fm) || 25;
+    if (bm) p.breakMinutes = parseInt(bm) || 5;
+    return p;
+  }
 
+  // ---- load this user's days from Supabase, importing any pre-existing local data once ----
+  async function loadCloudDays(session) {
+    let localDays = null;
+    try {
+      const raw = localStorage.getItem('sprout_days');
+      if (raw) localDays = JSON.parse(raw);
+    } catch (e) {}
+
+    const { data, error } = await supabase.from('days').select('*').eq('user_id', session.user.id);
+    if (error) { console.warn('Sprout: failed to load cloud days:', error.message); patch({ authChecked: true, session }); return; }
+
+    let days = {};
+    if (data && data.length) {
+      data.forEach(row => { days[row.date] = { tasks: row.tasks || [], notes: row.notes || '', pomos: row.pomos || 0, resolved: !!row.resolved }; });
+    } else if (localDays && Object.keys(localDays).length) {
+      // first login on this device with an empty cloud account: bring over whatever was stored locally
+      days = localDays;
+      for (const [date, entry] of Object.entries(days)) {
+        const { error: upErr } = await supabase.from('days').upsert({ user_id: session.user.id, date, tasks: entry.tasks, notes: entry.notes, pomos: entry.pomos, resolved: !!entry.resolved }, { onConflict: 'user_id,date' });
+        if (upErr) console.warn('Sprout: failed to import local day', date, upErr.message);
+      }
+    }
+
+    const { days: finalDays, tKey, pending } = withRollover(days);
+    patch({ authChecked: true, session, days: finalDays, todayDate: tKey, rolloverPending: pending, ...localPrefsPatch() });
+  }
+
+  function loadLocalOnly() {
+    let days = null;
+    try {
+      const rawDays = localStorage.getItem('sprout_days');
+      if (rawDays) days = JSON.parse(rawDays);
+    } catch (e) {}
+
+    if (!days) {
+      const legacyTasks = localStorage.getItem('sprout_tasks');
+      const legacyNotes = localStorage.getItem('sprout_notes');
+      const legacyPomos = localStorage.getItem('sprout_pomos');
+      days = {};
+      days[todayKey()] = {
+        tasks: legacyTasks ? JSON.parse(legacyTasks) : DEFAULT_TASKS,
+        notes: legacyNotes || '',
+        pomos: legacyPomos ? (parseInt(legacyPomos) || 0) : 0,
+        resolved: false,
+      };
+    }
+
+    const { days: finalDays, tKey, pending } = withRollover(days);
+    patch({ authChecked: true, days: finalDays, todayDate: tKey, rolloverPending: pending, ...localPrefsPatch() });
+  }
+
+  // ---- mount: resolve auth (if configured) or fall back to local-only, then detect day rollover ----
+  useEffect(() => {
     if (hasBridge) window.sprout.getApiKeyPresent().then(present => patch({ apiKeyPresent: !!present }));
+
+    if (!supabaseConfigured) { loadLocalOnly(); return; }
+
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      if (data.session) loadCloudDays(data.session);
+      else patch({ authChecked: true, session: null });
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) loadCloudDays(session);
+      if (event === 'SIGNED_OUT') patch({ session: null, days: {}, viewingDate: null, tab: 'today', showSettings: false, showCalendar: false, rolloverPending: null, authChecked: true });
+    });
+
+    return () => { cancelled = true; sub.subscription.unsubscribe(); };
   }, []);
 
   // ---- timer tick ----
@@ -173,19 +232,27 @@ export default function App() {
     const todayEntry = s.days[s.todayDate] || { ...EMPTY_DAY };
     if (s.mode === 'focus') {
       const days = { ...s.days, [s.todayDate]: { ...todayEntry, pomos: todayEntry.pomos + 1 } };
-      save({ days });
+      save({ days }, s.todayDate);
       return { ...s, days, mode: 'break', secondsLeft: s.breakMinutes * 60, running: false, mascotMsg: 'Focus session done! Grab some tea 🍵' };
     }
     return { ...s, mode: 'focus', secondsLeft: s.focusMinutes * 60, running: false, mascotMsg: "Break's over — let's get back in it 💪" };
   }
 
-  function save(next) {
+  function pushDayToCloud(dateKey, entry) {
+    if (!supabaseConfigured || !state.session || !entry) return;
+    supabase.from('days')
+      .upsert({ user_id: state.session.user.id, date: dateKey, tasks: entry.tasks, notes: entry.notes, pomos: entry.pomos, resolved: !!entry.resolved }, { onConflict: 'user_id,date' })
+      .then(({ error }) => { if (error) console.warn('Sprout: cloud sync failed:', error.message); });
+  }
+
+  function save(next, changedDate) {
     try {
       if (next.days) localStorage.setItem('sprout_days', JSON.stringify(next.days));
       if (next.theme) localStorage.setItem('sprout_theme', next.theme);
       if (next.focusMinutes !== undefined) localStorage.setItem('sprout_focus_minutes', String(next.focusMinutes));
       if (next.breakMinutes !== undefined) localStorage.setItem('sprout_break_minutes', String(next.breakMinutes));
     } catch (e) {}
+    if (changedDate && next.days) pushDayToCloud(changedDate, next.days[changedDate]);
   }
 
   const setTheme = (t) => { patch({ theme: t }); save({ theme: t }); };
@@ -198,7 +265,7 @@ export default function App() {
     setState(s => {
       const todayEntry = s.days[s.todayDate] || { ...EMPTY_DAY };
       const days = { ...s.days, [s.todayDate]: { ...todayEntry, tasks: [...todayEntry.tasks, task] } };
-      save({ days });
+      save({ days }, s.todayDate);
       return { ...s, days, newTask: '', mascotMsg: '' };
     });
   }
@@ -211,7 +278,7 @@ export default function App() {
       const todayEntry = s.days[s.todayDate] || { ...EMPTY_DAY };
       const tasks = todayEntry.tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
       const days = { ...s.days, [s.todayDate]: { ...todayEntry, tasks } };
-      save({ days });
+      save({ days }, s.todayDate);
       const total = tasks.length, done = tasks.filter(t => t.done).length;
       const wasAll = todayEntry.tasks.length > 0 && todayEntry.tasks.every(t => t.done);
       const next = { ...s, days, mascotMsg: '' };
@@ -229,7 +296,7 @@ export default function App() {
     setState(s => {
       const todayEntry = s.days[s.todayDate] || { ...EMPTY_DAY };
       const days = { ...s.days, [s.todayDate]: { ...todayEntry, tasks: todayEntry.tasks.filter(t => t.id !== id) } };
-      save({ days });
+      save({ days }, s.todayDate);
       return { ...s, days };
     });
   }
@@ -265,7 +332,7 @@ export default function App() {
     setState(s => {
       const todayEntry = s.days[s.todayDate] || { ...EMPTY_DAY };
       const days = { ...s.days, [s.todayDate]: { ...todayEntry, tasks: [...todayEntry.tasks, ...newTasks] } };
-      save({ days });
+      save({ days }, s.todayDate);
       return { ...s, days, sorting: false, dumpText: '', dumpOpen: false, mascotMsg: `Sorted that into ${newTasks.length} task${newTasks.length === 1 ? '' : 's'} ✨` };
     });
   }
@@ -312,7 +379,7 @@ export default function App() {
     setState(s => {
       const todayEntry = s.days[s.todayDate] || { ...EMPTY_DAY };
       const days = { ...s.days, [s.todayDate]: { ...todayEntry, notes } };
-      save({ days });
+      save({ days }, s.todayDate);
       return { ...s, days };
     });
   };
@@ -346,6 +413,8 @@ export default function App() {
       todayEntry.tasks = [...todayEntry.tasks, ...bring];
       days[s.todayDate] = todayEntry;
       save({ days });
+      pushDayToCloud(s.rolloverPending.date, days[s.rolloverPending.date]);
+      pushDayToCloud(s.todayDate, days[s.todayDate]);
       return { ...s, days, rolloverPending: null };
     });
   }
@@ -355,6 +424,7 @@ export default function App() {
       const from = { ...(days[s.rolloverPending.date] || { ...EMPTY_DAY }), resolved: true };
       days[s.rolloverPending.date] = from;
       save({ days });
+      pushDayToCloud(s.rolloverPending.date, days[s.rolloverPending.date]);
       return { ...s, days, rolloverPending: null };
     });
   }
@@ -373,9 +443,28 @@ export default function App() {
     await window.sprout.clearApiKey();
     patch({ apiKeyPresent: false, apiKeyDraft: '', settingsSaved: false });
   }
+  const logout = () => { if (supabaseConfigured) supabase.auth.signOut(); };
 
   // ================= derived render values =================
   const s = state;
+
+  if (!s.authChecked) {
+    return (
+      <div className={`sprout-app-shell${hasBridge ? '' : ' browser-mode'}`}>
+        <div style={{ width: 420, maxWidth: '100%', height: 640, borderRadius: 26, background: '#F3E7D7', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 26px 64px -20px rgba(50,32,16,.45)' }}>
+          <div style={{ width: 28, height: 28, border: '3px solid rgba(90,70,52,.25)', borderTopColor: '#5A4634', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
+        </div>
+      </div>
+    );
+  }
+  if (supabaseConfigured && !s.session) {
+    return (
+      <div className={`sprout-app-shell${hasBridge ? '' : ' browser-mode'}`}>
+        <Auth />
+      </div>
+    );
+  }
+
   const theme = THEMES[s.theme] || THEMES.cozy;
   const isLive = !s.viewingDate;
   const activeDate = s.viewingDate || s.todayDate;
@@ -659,6 +748,8 @@ export default function App() {
             onSave={saveApiKey}
             onClear={clearApiKey}
             onClose={closeSettings}
+            accountEmail={s.session ? s.session.user.email : null}
+            onLogout={logout}
           />
         )}
 

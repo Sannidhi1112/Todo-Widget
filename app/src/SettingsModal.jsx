@@ -2,14 +2,26 @@ import React from 'react';
 
 const noDrag = { WebkitAppRegion: 'no-drag' };
 
-export default function SettingsModal({ hasBridge, apiKeyPresent, apiKeyDraft, settingsSaved, onChangeDraft, onSave, onClear, onClose }) {
+export default function SettingsModal({ hasBridge, apiKeyPresent, apiKeyDraft, settingsSaved, onChangeDraft, onSave, onClear, onClose, accountEmail, onLogout }) {
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(20,14,8,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, ...noDrag }}>
       <div style={{ width: '100%', maxWidth: 320, background: 'var(--card,#fff)', border: '2px var(--st,solid) var(--line,#ead9c6)', borderRadius: 'var(--rad,18px)', padding: 20, boxShadow: '0 20px 50px -16px rgba(0,0,0,.5)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <span style={{ fontFamily: "var(--head,'Fredoka',sans-serif)", fontSize: 16, fontWeight: 700, color: 'var(--text,#5a4634)' }}>AI settings</span>
+          <span style={{ fontFamily: "var(--head,'Fredoka',sans-serif)", fontSize: 16, fontWeight: 700, color: 'var(--text,#5a4634)' }}>Settings</span>
           <button onClick={onClose} style={{ width: 26, height: 26, border: 'none', background: 'transparent', color: 'var(--muted,#a08b76)', fontSize: 16, cursor: 'pointer' }}>{'×'}</button>
         </div>
+
+        {accountEmail && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 11, background: 'var(--input,#fbf3ea)', marginBottom: 16 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted,#a08b76)', textTransform: 'uppercase', letterSpacing: .3 }}>Signed in as</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text,#5a4634)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{accountEmail}</div>
+            </div>
+            <button onClick={onLogout} style={{ flex: '0 0 auto', padding: '7px 12px', borderRadius: 9, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'transparent', color: 'var(--text,#5a4634)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Log out</button>
+          </div>
+        )}
+
+        <span style={{ display: 'block', fontFamily: "var(--head,'Fredoka',sans-serif)", fontSize: 13.5, fontWeight: 700, color: 'var(--text,#5a4634)', marginBottom: 8 }}>AI settings</span>
 
         {!hasBridge ? (
           <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--muted,#a08b76)', fontWeight: 500 }}>
