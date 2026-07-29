@@ -12,7 +12,7 @@ export default function CalendarModal({ year, month, days, viewingDate, onPrevMo
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(20,14,8,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, ...noDrag }}>
-      <div style={{ width: '100%', maxWidth: 320, background: 'var(--card,#fff)', border: '2px var(--st,solid) var(--line,#ead9c6)', borderRadius: 'var(--rad,18px)', padding: 18, boxShadow: '0 20px 50px -16px rgba(0,0,0,.5)' }}>
+      <div style={{ width: '100%', maxWidth: 320, background: 'var(--card,#fff)', border: '2px var(--st,solid) var(--line,#ead9c6)', borderRadius: 'var(--rad,18px)', padding: 18, boxShadow: '0 20px 50px -16px rgba(0,0,0,.5)', filter: 'var(--sketchy-filter,none)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <button onClick={onPrevMonth} style={{ width: 26, height: 26, border: 'none', background: 'var(--chip,#fbf3ea)', color: 'var(--text,#5a4634)', borderRadius: 8, fontSize: 14, cursor: 'pointer' }}>{'‹'}</button>
           <span style={{ fontFamily: "var(--head,'Fredoka',sans-serif)", fontSize: 15, fontWeight: 700, color: 'var(--text,#5a4634)' }}>{MONTH_NAMES[month]} {year}</span>

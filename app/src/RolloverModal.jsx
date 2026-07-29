@@ -9,7 +9,7 @@ export default function RolloverModal({ fromLabel, tasks, onConfirm, onSkip }) {
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 25, background: 'rgba(20,14,8,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, ...noDrag }}>
-      <div style={{ width: '100%', maxWidth: 320, maxHeight: '80%', display: 'flex', flexDirection: 'column', background: 'var(--card,#fff)', border: '2px var(--st,solid) var(--line,#ead9c6)', borderRadius: 'var(--rad,18px)', padding: 20, boxShadow: '0 20px 50px -16px rgba(0,0,0,.5)' }}>
+      <div style={{ width: '100%', maxWidth: 320, maxHeight: '80%', display: 'flex', flexDirection: 'column', background: 'var(--card,#fff)', border: '2px var(--st,solid) var(--line,#ead9c6)', borderRadius: 'var(--rad,18px)', padding: 20, boxShadow: '0 20px 50px -16px rgba(0,0,0,.5)', filter: 'var(--sketchy-filter,none)' }}>
         <span style={{ fontFamily: "var(--head,'Fredoka',sans-serif)", fontSize: 16, fontWeight: 700, color: 'var(--text,#5a4634)' }}>Catching up</span>
         <p style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--muted,#a08b76)', fontWeight: 500, margin: '6px 0 12px' }}>
           You had {tasks.length} unfinished task{tasks.length === 1 ? '' : 's'} on {fromLabel}. Bring any of them into today?

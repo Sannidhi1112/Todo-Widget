@@ -54,6 +54,10 @@ Click the ⚙ icon next to the theme swatches to add an Anthropic API key. It's 
 
 Without a key, both features fall back to the same local behavior as the original prototype (simple line-splitting for brain dump, canned mascot lines).
 
+## Themes
+
+Cozy (pastel), Moody (dark), and **Sketch** — a genuinely hand-drawn look: a hidden SVG filter gives every card, button, and input a hand-inked wobble, borders are dashed and imperfect, the mascot and round buttons use an organic (not perfectly circular) shape, checked checkboxes get a cross-hatched pencil-shading fill instead of a flat color, and the whole card sits on a faint ruled-notebook-paper background with a red margin line. Cozy/Moody are unaffected — the wobble/paper/hatch are all driven by per-theme CSS variables that default to "off."
+
 ## Widget behavior
 
 - Frameless, transparent, fixed-size (420×640) window, positioned near the top-right of the screen on first launch and remembered after that.

@@ -29,9 +29,14 @@ const CANNED = {
 };
 
 const THEMES = {
-  cozy: { '--bg': '#F3E7D7', '--card': '#FFFCF7', '--text': '#5A4634', '--muted': '#A08B76', '--accent': '#E8956B', '--accent2': '#F5CFA8', '--line': '#EAD9C6', '--eink': '#5A4634', '--st': 'solid', '--rad': '22px', '--font': "'Quicksand',sans-serif", '--head': "'Fredoka',sans-serif", '--chip': '#FBF3EA', '--input': '#FBF3EA' },
-  dark: { '--bg': '#191622', '--card': '#241F30', '--text': '#EDE7F7', '--muted': '#8A80A6', '--accent': '#B79CED', '--accent2': '#3C3452', '--line': '#352E48', '--eink': '#EDE7F7', '--st': 'solid', '--rad': '22px', '--font': "'Quicksand',sans-serif", '--head': "'Fredoka',sans-serif", '--chip': '#2E2840', '--input': '#2E2840' },
-  sketch: { '--bg': '#F7F2E7', '--card': '#FFFFFF', '--text': '#2C2A26', '--muted': '#8B8577', '--accent': '#F0803C', '--accent2': '#FCE3C8', '--line': '#2C2A26', '--eink': '#2C2A26', '--st': 'dashed', '--rad': '14px', '--font': "'Patrick Hand',cursive", '--head': "'Patrick Hand',cursive", '--chip': '#FBF6EC', '--input': '#FBF6EC' },
+  cozy: { '--bg': '#F3E7D7', '--card': '#FFFCF7', '--text': '#5A4634', '--muted': '#A08B76', '--accent': '#E8956B', '--accent2': '#F5CFA8', '--line': '#EAD9C6', '--eink': '#5A4634', '--st': 'solid', '--rad': '22px', '--font': "'Quicksand',sans-serif", '--head': "'Fredoka',sans-serif", '--chip': '#FBF3EA', '--input': '#FBF3EA',
+    '--sketchy-filter': 'none', '--radius-organic': '50%', '--checked-fill': 'var(--accent)', '--paper-bg': 'none' },
+  dark: { '--bg': '#191622', '--card': '#241F30', '--text': '#EDE7F7', '--muted': '#8A80A6', '--accent': '#B79CED', '--accent2': '#3C3452', '--line': '#352E48', '--eink': '#EDE7F7', '--st': 'solid', '--rad': '22px', '--font': "'Quicksand',sans-serif", '--head': "'Fredoka',sans-serif", '--chip': '#2E2840', '--input': '#2E2840',
+    '--sketchy-filter': 'none', '--radius-organic': '50%', '--checked-fill': 'var(--accent)', '--paper-bg': 'none' },
+  sketch: { '--bg': '#F7F2E7', '--card': '#FFFFFF', '--text': '#2C2A26', '--muted': '#8B8577', '--accent': '#F0803C', '--accent2': '#FCE3C8', '--line': '#2C2A26', '--eink': '#2C2A26', '--st': 'dashed', '--rad': '14px', '--font': "'Patrick Hand',cursive", '--head': "'Patrick Hand',cursive", '--chip': '#FBF6EC', '--input': '#FBF6EC',
+    '--sketchy-filter': 'url(#sprout-sketchy)', '--radius-organic': '47% 53% 51% 49% / 54% 48% 52% 46%',
+    '--checked-fill': 'repeating-linear-gradient(45deg, rgba(0,0,0,.18) 0 2px, transparent 2px 5px), var(--accent)',
+    '--paper-bg': "repeating-linear-gradient(0deg, rgba(44,42,38,.05) 0 1px, transparent 1px 27px), linear-gradient(90deg, transparent 0 31px, rgba(228,101,90,.32) 31px 32px, transparent 32px 100%)" },
 };
 
 const DEFAULT_TASKS = [
@@ -489,19 +494,26 @@ export default function App() {
   const dashoff = circ * (1 - s.secondsLeft / totalSecs);
   const mm = String(Math.floor(s.secondsLeft / 60)).padStart(2, '0');
   const ss = String(s.secondsLeft % 60).padStart(2, '0');
-  const modeBtnBase = { padding: '8px 16px', borderRadius: '9px', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', background: 'transparent', color: 'var(--muted)', ...noDrag };
+  const modeBtnBase = { padding: '8px 16px', borderRadius: '9px', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', background: 'transparent', color: 'var(--muted)', filter: 'var(--sketchy-filter,none)', ...noDrag };
   const modeActive = { ...modeBtnBase, background: 'var(--card)', color: 'var(--text)', boxShadow: '0 2px 8px -3px rgba(0,0,0,.3)' };
   const activeMinutes = s.mode === 'focus' ? s.focusMinutes : s.breakMinutes;
-  const chipStyle = (active) => ({ padding: '6px 12px', borderRadius: 9, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? 'var(--accent)' : 'var(--chip,#fbf3ea)', color: active ? '#fff' : 'var(--muted,#a08b76)' });
+  const chipStyle = (active) => ({ padding: '6px 12px', borderRadius: 9, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? 'var(--accent)' : 'var(--chip,#fbf3ea)', color: active ? '#fff' : 'var(--muted,#a08b76)', filter: 'var(--sketchy-filter,none)' });
 
   const rootStyle = {
     width: '420px', maxWidth: '100%', height: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column',
-    overflow: 'hidden', borderRadius: '26px', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font)',
+    overflow: 'hidden', borderRadius: '26px', background: 'var(--bg)', backgroundImage: 'var(--paper-bg)', color: 'var(--text)', fontFamily: 'var(--font)',
     boxShadow: '0 26px 64px -20px rgba(50,32,16,.45)', position: 'relative', WebkitAppRegion: 'drag', ...theme,
   };
 
   return (
     <div className={`sprout-app-shell${hasBridge ? '' : ' browser-mode'}`}>
+      {/* hidden filter that gives the Sketch theme its hand-inked wobble */}
+      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+        <filter id="sprout-sketchy">
+          <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="6" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.2" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
       <div style={rootStyle}>
 
         {/* starfield */}
@@ -542,7 +554,7 @@ export default function App() {
             {/* mascot */}
             <div style={{ width: 62, height: 70, position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: 'bob 3.6s ease-in-out infinite', flex: '0 0 auto' }}>
               <div style={{ position: 'absolute', top: -9, right: 2, transform: `scale(${leafScale})`, transformOrigin: 'center', transition: 'transform .4s ease', zIndex: 2, fontSize: 14, color: '#F5C86B', textShadow: '0 0 8px rgba(245,200,107,.8)', lineHeight: 1 }}>{'✦'}</div>
-              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'radial-gradient(circle at 38% 32%, #FCF6DD, #EFE0B0)', border: '2px var(--st,solid) rgba(180,150,90,.35)', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, boxShadow: `0 0 ${18 + pct / 100 * 24}px rgba(248,232,170,${0.4 + pct / 100 * 0.45}), 0 4px 12px -6px rgba(0,0,0,.3)`, transition: 'box-shadow .5s ease' }}>
+              <div style={{ width: 56, height: 56, borderRadius: 'var(--radius-organic,50%)', background: 'radial-gradient(circle at 38% 32%, #FCF6DD, #EFE0B0)', border: '2px var(--st,solid) rgba(180,150,90,.35)', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, boxShadow: `0 0 ${18 + pct / 100 * 24}px rgba(248,232,170,${0.4 + pct / 100 * 0.45}), 0 4px 12px -6px rgba(0,0,0,.3)`, transition: 'box-shadow .5s ease', filter: 'var(--sketchy-filter,none)' }}>
                 <div style={{ position: 'absolute', top: 9, right: 9, width: 8, height: 8, borderRadius: '50%', background: 'rgba(120,95,40,.12)' }} />
                 <div style={{ position: 'absolute', bottom: 8, left: 8, width: 5, height: 5, borderRadius: '50%', background: 'rgba(120,95,40,.12)' }} />
                 <div style={{ display: 'flex', gap: 9 }}>
@@ -611,19 +623,19 @@ export default function App() {
               {isLive ? (
                 <>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                    <input value={s.newTask} onChange={onNewTask} onKeyDown={onNewTaskKey} placeholder="Add a task…" style={{ flex: 1, padding: '11px 14px', borderRadius: 13, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 14, fontWeight: 500, outline: 'none' }} />
-                    <button onClick={addManual} style={{ flex: '0 0 auto', width: 44, borderRadius: 13, border: 'none', background: 'var(--accent,#e8956b)', color: '#fff', fontSize: 22, cursor: 'pointer' }}>+</button>
+                    <input value={s.newTask} onChange={onNewTask} onKeyDown={onNewTaskKey} placeholder="Add a task…" style={{ flex: 1, padding: '11px 14px', borderRadius: 13, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 14, fontWeight: 500, outline: 'none', filter: 'var(--sketchy-filter,none)' }} />
+                    <button onClick={addManual} style={{ flex: '0 0 auto', width: 44, borderRadius: 13, border: 'none', background: 'var(--accent,#e8956b)', color: '#fff', fontSize: 22, cursor: 'pointer', filter: 'var(--sketchy-filter,none)' }}>+</button>
                   </div>
 
-                  <button onClick={toggleDump} style={{ width: '100%', textAlign: 'left', padding: '9px 13px', borderRadius: 12, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'transparent', color: 'var(--muted,#a08b76)', fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button onClick={toggleDump} style={{ width: '100%', textAlign: 'left', padding: '9px 13px', borderRadius: 12, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'transparent', color: 'var(--muted,#a08b76)', fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', filter: 'var(--sketchy-filter,none)' }}>
                     <span>{'🧠'} Brain dump — let AI sort it</span>
                     <span style={{ display: 'inline-block', transform: s.dumpOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .2s', fontSize: 15 }}>{'⌄'}</span>
                   </button>
 
                   {s.dumpOpen && (
                     <div style={{ marginBottom: 14, animation: 'rise .25s ease' }}>
-                      <textarea value={s.dumpText} onChange={onDump} placeholder="Type everything swirling in your head — one big mess is fine. Sprout will untangle it into clean tasks with categories & priorities." rows={4} style={{ width: '100%', padding: '12px 14px', borderRadius: 13, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 13.5, lineHeight: 1.45, outline: 'none' }} />
-                      <button onClick={aiSort} disabled={s.sorting} style={{ marginTop: 8, width: '100%', padding: 11, borderRadius: 13, border: 'none', background: s.sorting ? 'var(--muted)' : 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: s.sorting ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <textarea value={s.dumpText} onChange={onDump} placeholder="Type everything swirling in your head — one big mess is fine. Sprout will untangle it into clean tasks with categories & priorities." rows={4} style={{ width: '100%', padding: '12px 14px', borderRadius: 13, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 13.5, lineHeight: 1.45, outline: 'none', filter: 'var(--sketchy-filter,none)' }} />
+                      <button onClick={aiSort} disabled={s.sorting} style={{ marginTop: 8, width: '100%', padding: 11, borderRadius: 13, border: 'none', background: s.sorting ? 'var(--muted)' : 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: s.sorting ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, filter: 'var(--sketchy-filter,none)' }}>
                         {s.sorting ? (
                           <>
                             <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid rgba(255,255,255,.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
@@ -646,8 +658,8 @@ export default function App() {
               {total > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {tasks.map(t => (
-                    <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 12px', borderRadius: 14, background: 'var(--card)', border: '2px var(--st,solid) var(--line)', opacity: t.done ? 0.62 : (isLive ? 1 : 0.9), transition: 'opacity .2s' }}>
-                      <button onClick={isLive ? () => toggleTask(t.id) : undefined} disabled={!isLive} style={{ flex: '0 0 auto', width: 23, height: 23, marginTop: 1, borderRadius: 8, cursor: isLive ? 'pointer' : 'default', border: t.done ? 'none' : '2px var(--st,solid) var(--line)', background: t.done ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                    <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 12px', borderRadius: 14, background: 'var(--card)', border: '2px var(--st,solid) var(--line)', opacity: t.done ? 0.62 : (isLive ? 1 : 0.9), transition: 'opacity .2s', filter: 'var(--sketchy-filter,none)' }}>
+                      <button onClick={isLive ? () => toggleTask(t.id) : undefined} disabled={!isLive} style={{ flex: '0 0 auto', width: 23, height: 23, marginTop: 1, borderRadius: 8, cursor: isLive ? 'pointer' : 'default', border: t.done ? 'none' : '2px var(--st,solid) var(--line)', background: t.done ? 'var(--checked-fill)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
                         {t.done && <span style={{ color: '#fff', fontSize: 13, fontWeight: 700, lineHeight: 1 }}>{'✓'}</span>}
                       </button>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -687,9 +699,9 @@ export default function App() {
                 </div>
                 {customOpen && (
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, ...noDrag }}>
-                    <input type="number" min="1" max="180" value={customDraft} onChange={e => setCustomDraft(e.target.value)} placeholder={String(activeMinutes)} style={{ width: 64, padding: '6px 8px', borderRadius: 9, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 12.5, outline: 'none' }} />
+                    <input type="number" min="1" max="180" value={customDraft} onChange={e => setCustomDraft(e.target.value)} placeholder={String(activeMinutes)} style={{ width: 64, padding: '6px 8px', borderRadius: 9, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 12.5, outline: 'none', filter: 'var(--sketchy-filter,none)' }} />
                     <span style={{ fontSize: 12, color: 'var(--muted,#a08b76)' }}>min</span>
-                    <button onClick={applyCustom} style={{ padding: '6px 12px', borderRadius: 9, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Set</button>
+                    <button onClick={applyCustom} style={{ padding: '6px 12px', borderRadius: 9, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', filter: 'var(--sketchy-filter,none)' }}>Set</button>
                   </div>
                 )}
 
@@ -705,8 +717,8 @@ export default function App() {
                 </div>
 
                 <div style={{ display: 'flex', gap: 12, marginTop: 26 }}>
-                  <button onClick={toggleTimer} style={{ width: 62, height: 62, borderRadius: '50%', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 20, cursor: 'pointer', boxShadow: '0 8px 20px -6px var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.running ? '❚❚' : '▶'}</button>
-                  <button onClick={resetTimer} style={{ width: 52, height: 52, borderRadius: '50%', border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'transparent', color: 'var(--text,#5a4634)', fontSize: 18, cursor: 'pointer' }}>{'↺'}</button>
+                  <button onClick={toggleTimer} style={{ width: 62, height: 62, borderRadius: 'var(--radius-organic,50%)', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 20, cursor: 'pointer', boxShadow: '0 8px 20px -6px var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', filter: 'var(--sketchy-filter,none)' }}>{s.running ? '❚❚' : '▶'}</button>
+                  <button onClick={resetTimer} style={{ width: 52, height: 52, borderRadius: 'var(--radius-organic,50%)', border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'transparent', color: 'var(--text,#5a4634)', fontSize: 18, cursor: 'pointer', filter: 'var(--sketchy-filter,none)' }}>{'↺'}</button>
                 </div>
 
                 <div style={{ marginTop: 24, fontSize: 13, fontWeight: 600, color: 'var(--muted,#a08b76)' }}>
@@ -730,7 +742,7 @@ export default function App() {
                 onChange={isLive ? onNotes : undefined}
                 readOnly={!isLive}
                 placeholder="A little scratchpad for thoughts, links, half-ideas… anything that doesn't need a checkbox yet."
-                style={{ flex: 1, minHeight: 280, width: '100%', padding: '15px 16px', borderRadius: 15, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 14, lineHeight: 1.6, outline: 'none', opacity: isLive ? 1 : .8 }}
+                style={{ flex: 1, minHeight: 280, width: '100%', padding: '15px 16px', borderRadius: 15, border: '2px var(--st,solid) var(--line,#ead9c6)', background: 'var(--input,#fbf3ea)', color: 'var(--text,#5a4634)', fontSize: 14, lineHeight: 1.6, outline: 'none', opacity: isLive ? 1 : .8, filter: 'var(--sketchy-filter,none)' }}
               />
               <div style={{ textAlign: 'right', marginTop: 8, fontSize: 11.5, color: 'var(--muted,#a08b76)', fontWeight: 600 }}>{wordCount(activeDay.notes)} words{isLive ? ' · saved' : ''}</div>
             </div>
